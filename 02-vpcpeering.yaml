@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: 'Peers the VPCs, and launches an instance in Requester VPC.'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: VPC Peering
+      Parameters:
+        - Vpc
+        - VpcCidr
+        - NumberOfRouteTable
+        - NatRouteTable
+        - AccepterVPC
+        - AccepterCidr
+        - AccepterRouteTableId
+    ParameterLabels:
+      Vpc:
+        default: Requester VPC id
+      VpcCidr:
+        default: VpcCidr
+      NumberOfRouteTable:
+        default: Number of route table
+      NatRouteTable:
+        default: Requester route table
+      AccepterVPC:
+        default: Accepter VPC id (NetApp CVO VPC)
+      AccepterCidr:
+        default: Accepter VPC cidr (NetApp CVO cidr)
+      AccepterRouteTableId:
+        default: Accepter route table id (NetApp CVO route table id)
+      
+Parameters:
+  Vpc:
+    Description: 'Existing VPC for requester VPC'
+    Type: AWS::EC2::VPC::Id
+  VpcCidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR block for the VPC
+    Type: String
+  NumberOfRouteTable:
+    Description: 'Number of route table'
+    Type: String
+  NatRouteTable:
+    Description: 'Existing route table'
+    Type: String
+  AccepterVPC:
+    Description: Existing accepter VPC peering (NetApp CVO VPC id)
+    Type: AWS::EC2::VPC::Id
+  AccepterCidr:
+    AllowedPattern: "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$"
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR block for the Accepter VPC (NetApp CVO VPC cidr)
+    Type: String
+  AccepterRouteTableId:
+    AllowedPattern: "^rtb-\\w*"
+    ConstraintDescription: Accepter route table for VPC peering
+    Description: Route table for VPC peering (NetApp CVO VPC route table id)
+    Type: String
+
+Conditions:
+  NumberOfRouteTable1:
+      !Equals [ 1, !Ref NumberOfRouteTable ]
+  NumberOfRouteTable2:
+      !Equals [ 2, !Ref NumberOfRouteTable ]
+  NumberOfRouteTable3:
+      !Equals [ 3, !Ref NumberOfRouteTable ]
+  NumberOfRouteTable4:
+      !Equals [ 4, !Ref NumberOfRouteTable ]
+  NumberOfRouteTable5:
+      !Equals [ 5, !Ref NumberOfRouteTable ]
+  NumberOfRouteTable6:
+      !Equals [ 6, !Ref NumberOfRouteTable ]
+  AZ0: !Or
+    - !Condition NumberOfRouteTable1
+    - !Condition NumberOfRouteTable2
+    - !Condition NumberOfRouteTable3
+    - !Condition NumberOfRouteTable4
+    - !Condition NumberOfRouteTable5
+    - !Condition NumberOfRouteTable6
+  AZ1: !Or
+    - !Condition NumberOfRouteTable2
+    - !Condition NumberOfRouteTable3
+    - !Condition NumberOfRouteTable4
+    - !Condition NumberOfRouteTable5
+    - !Condition NumberOfRouteTable6
+  AZ2: !Or
+    - !Condition NumberOfRouteTable3
+    - !Condition NumberOfRouteTable4
+    - !Condition NumberOfRouteTable5
+    - !Condition NumberOfRouteTable6
+  AZ3: !Or
+    - !Condition NumberOfRouteTable4
+    - !Condition NumberOfRouteTable5
+    - !Condition NumberOfRouteTable6
+  AZ4: !Or
+    - !Condition NumberOfRouteTable5
+    - !Condition NumberOfRouteTable6
+  AZ5: !Condition NumberOfRouteTable6
+
+Resources:
+  VPCPeeringConnection:
+    Type: 'AWS::EC2::VPCPeeringConnection'
+    Properties:
+      VpcId: !Ref Vpc
+      PeerVpcId: !Ref AccepterVPC
+  RequesterPeeringRoute0:
+    Condition: AZ0
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: !Ref AccepterCidr
+      RouteTableId: !Select [0, !Split [",", !Ref NatRouteTable]]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+  RequesterPeeringRoute1:
+    Condition: AZ1
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: !Ref AccepterCidr
+      RouteTableId: !Select [1, !Split [",", !Ref NatRouteTable]]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+  RequesterPeeringRoute2:
+    Condition: AZ2
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: !Ref AccepterCidr
+      RouteTableId: !Select [2, !Split [",", !Ref NatRouteTable]] 
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+  RequesterPeeringRoute3:
+    Condition: AZ3
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: !Ref AccepterCidr
+      RouteTableId: !Select [3, !Split [",", !Ref NatRouteTable]]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+  RequesterPeeringRoute4:
+    Condition: AZ4
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: !Ref AccepterCidr
+      RouteTableId: !Select [4, !Split [",", !Ref NatRouteTable]]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+  RequesterPeeringRoute5:
+    Condition: AZ5
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: !Ref AccepterCidr
+      RouteTableId: !Select [5, !Split [",", !Ref NatRouteTable]]
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
+  AccepterPeeringRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: !Ref VpcCidr
+      RouteTableId: !Ref AccepterRouteTableId
+      VpcPeeringConnectionId: !Ref VPCPeeringConnection
